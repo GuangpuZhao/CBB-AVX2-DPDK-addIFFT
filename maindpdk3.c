@@ -28,7 +28,7 @@
 #include <rte_mbuf.h>
 
 #include "allHeaders.h"
-
+// #define datatest
 #define RUNMAINDPDK
 #ifdef RUNMAINDPDK
 
@@ -106,6 +106,18 @@ static int ReadData(__attribute__((unused)) struct rte_mbuf *Data)
 	//free(databits_temp);
 	printf("Data->buflen = %d\n",Data->buf_len);
 	printf("ReadData_count = %d\n", ReadData_count++);
+    //data test
+  
+    #ifdef datatest
+	FILE *a=fopen("1-test-Datapart.txt","w");
+	unsigned char *test=NULL;
+	test=rte_pktmbuf_mtod_offset(Data, unsigned char *, 0);
+    for(i=0;i<APEP_LEN_DPDK;i++)
+    {
+    	fprintf(a,"%d\n",test[i]);
+    }
+    fclose(a);
+    #endif
 	rte_ring_enqueue(Ring_Beforescramble, Data); //First half
 	return 0;
 }
@@ -116,6 +128,18 @@ static int GenDataAndScramble_DPDK (__attribute__((unused)) struct rte_mbuf *Dat
 	unsigned char *databits = rte_pktmbuf_mtod(Data_In, unsigned char *);
 	unsigned char *data_scramble = rte_pktmbuf_mtod_offset(Data_In, unsigned char *, MBUF_CACHE_SIZE/2*1024);
 	GenDataAndScramble(data_scramble, ScrLength, databits, valid_bits);	
+    //data Scramble test
+    #ifdef datatest
+    int i;
+	FILE *a=fopen("2-test-Scramblepart.txt","w");
+	unsigned char *test=NULL;
+	test=rte_pktmbuf_mtod_offset(Data_In, unsigned char *, MBUF_CACHE_SIZE/2*1024);
+    for(i=0;i<ScrLength;i++)
+    {
+    	fprintf(a,"%hd\n",test[i]);
+    }
+    fclose(a);
+    #endif
 
 	rte_ring_enqueue(Ring_scramble_2_BCC, Data_In); //The other half
 	return 0;
@@ -128,6 +152,18 @@ static int BCC_encoder_DPDK (__attribute__((unused)) struct rte_mbuf *Data_In)
 	unsigned char *data_scramble = rte_pktmbuf_mtod_offset(Data_In, unsigned char *, MBUF_CACHE_SIZE/2*1024);
 	unsigned char* BCCencodeout = rte_pktmbuf_mtod_offset(Data_In, unsigned char *, 0);
 	BCC_encoder_OPT(data_scramble, ScrLength, N_SYM, &BCCencodeout, CodeLength);
+    //test BCC data
+    #ifdef datatest
+    int i;
+	FILE *b=fopen("3-test-BCCencodepart.txt","w");
+	unsigned char *test=NULL;
+	test=rte_pktmbuf_mtod_offset(Data_In, unsigned char *, 0);
+    for(i=0;i<CodeLength*N_STS;i++)
+    {
+    	fprintf(b,"%hd\n",test[i]);
+    }
+    fclose(b);
+    #endif
 
 	rte_ring_enqueue(Ring_BCC_2_modulation, Data_In); //First half
 	return 0;
@@ -142,6 +178,17 @@ static int modulate_DPDK(__attribute__((unused)) struct rte_mbuf *Data_In)
 	complex32 *subcar_map_data = rte_pktmbuf_mtod_offset(Data_In, complex32 *, 0);
 
 	modulate_mapping(BCCencodeout, &stream_interweave_dataout, &subcar_map_data);
+    
+    //print modulation data
+    #ifdef datatest
+    int i;
+	FILE *e=fopen("4-test-Datamodulate.txt","w");
+    for(i=0;i<subcar*N_SYM*N_STS;i++)
+    {
+    	fprintf(e,"(%hd,%hd)\n",subcar_map_data[i].real,subcar_map_data[i].imag);
+    }
+    fclose(e);
+    #endif
 
 	rte_ring_enqueue(Ring_modulation_2_CSD, Data_In);//First half
 	return 0;
@@ -162,13 +209,15 @@ static int CSD_encode_DPDK (__attribute__((unused)) struct rte_mbuf *Data_In)
 	}
 	//printf("%hd,%hd\n",csd_data[6].real,csd_data[6].imag);
     
-    //print CSD data
-	FILE *fp=fopen("Data-CSD.txt","w");
+    //test CSD data
+    #ifdef datatest
+	FILE *f=fopen("5-test-DataCSD.txt","w");
     for(i=0;i<subcar*N_STS*N_SYM;i++)
     {
-    	fprintf(fp, "(%hd,%hd)\n",csd_data[i].real,csd_data[i].imag);
+    	fprintf(f,"(%hd,%hd)\n",csd_data[i].real,csd_data[i].imag);
     }
-    fclose(fp);
+    fclose(f);
+    #endif
 
 
 
